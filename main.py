@@ -1,5 +1,5 @@
 # ============================================================
-# COMPLETE API FOR RENDER.COM WITH WEB INTERFACE
+# COMPLETE API FOR RENDER.COM WITH WEB INTERFACE - FIXED
 # File: main.py
 # ============================================================
 
@@ -249,15 +249,6 @@ HTML_INTERFACE = '''
             background: #00a381;
         }
 
-        .btn-warning {
-            background: #fdcb6e;
-            color: #2d3436;
-        }
-
-        .btn-warning:hover {
-            background: #fdcb6e;
-        }
-
         .btn-sm {
             padding: 6px 14px;
             font-size: 12px;
@@ -470,7 +461,6 @@ HTML_INTERFACE = '''
                     <button onclick="setModel('gateway-gpt-4')">GPT-4</button>
                     <button onclick="setModel('gateway-claude-3')">Claude 3</button>
                     <button onclick="setModel('gateway-gemini-pro')">Gemini</button>
-                    <button onclick="setModel('custom')">Custom</button>
                 </div>
             </div>
 
@@ -523,7 +513,7 @@ HTML_INTERFACE = '''
         <div class="card full-width">
             <div class="card-title">💬 Live Chat</div>
             <div id="liveChat" class="chat-messages">
-                <div class="msg info">Start a chat session to begin</div>
+                <div class="msg info">Create a chat session to start</div>
             </div>
             <div id="typingIndicator" class="typing-indicator">AI is typing...</div>
             <div class="input-group" style="margin-top:10px;">
@@ -544,15 +534,11 @@ HTML_INTERFACE = '''
         let isProcessing = false;
 
         function setModel(model) {
-            if (model === 'custom') {
-                document.getElementById('modelName').value = '';
-                document.getElementById('modelName').focus();
-                document.querySelectorAll('.quick-models button').forEach(b => b.classList.remove('active'));
-                return;
-            }
             document.getElementById('modelName').value = model;
             document.querySelectorAll('.quick-models button').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             addLog('info', 'Model set to: ' + model);
         }
 
@@ -594,7 +580,7 @@ HTML_INTERFACE = '''
 
                 if (response.ok) {
                     updateStatus('Online', 'online');
-                    addLog('success', 'API is online: ' + JSON.stringify(data));
+                    addLog('success', 'API is online');
                 } else {
                     updateStatus('Offline', 'offline');
                     addLog('error', 'API returned: ' + response.status);
@@ -885,11 +871,11 @@ HTML_INTERFACE = '''
             addLog('info', 'Everything cleared');
         }
 
-        // Initialize
-        window.addEventListener('load', function() {
+        // Auto-run health check on load
+        window.onload = function() {
             setTimeout(testHealth, 500);
             addLiveMessage('info', 'Welcome! Create a chat session to start.');
-        });
+        };
     </script>
 </body>
 </html>
