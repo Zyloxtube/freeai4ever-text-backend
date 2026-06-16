@@ -1,15 +1,20 @@
 # ============================================================
-# COMPLETE API FOR RENDER.COM
-# File: app.py
+# COMPLETE API FOR RENDER.COM WITH CORS
+# File: main.py
 # ============================================================
 
 from flask import Flask, request, jsonify, Response, stream_with_context
+from flask_cors import CORS
 import requests
 import json
 import uuid
 import time
+import os
 
 app = Flask(__name__)
+
+# Enable CORS for all routes and all origins
+CORS(app, origins='*', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allow_headers=['*'])
 
 # Store chat sessions in memory (will reset on restart)
 chat_sessions = {}
@@ -17,13 +22,16 @@ chat_sessions = {}
 # Your API key
 API_KEY = "ua_j7N_FLn1MXA0WJF_4B8XVKSvs1geQfR0"
 
-@app.route('/genchat', methods=['POST'])
+@app.route('/genchat', methods=['POST', 'OPTIONS'])
 def generate_chat():
     """
     Generate a new chat session with a specific model
     POST /genchat
     Body: {"model": "gateway-gpt-5-5"}
     """
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         
@@ -46,11 +54,13 @@ def generate_chat():
             "messages": []
         }
         
-        return jsonify({
+        response = jsonify({
             "chatId": chat_id,
             "model": model,
             "message": f"Chat session created with model: {model}"
-        }), 200
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
         
     except Exception as e:
         return jsonify({
@@ -58,13 +68,16 @@ def generate_chat():
             "message": str(e)
         }), 500
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
     """
     Send a message to an existing chat session
     POST /chat
     Body: {"chatId": "abc-123", "message": "Hello!"}
     """
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         
@@ -159,15 +172,19 @@ def chat():
                 error_msg = f"Error: {str(e)}"
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
         
-        # Return streaming response
-        return Response(
+        # Return streaming response with CORS headers
+        response = Response(
             stream_with_context(generate()),
             mimetype='text/event-stream',
             headers={
                 'Cache-Control': 'no-cache',
-                'X-Accel-Buffering': 'no'
+                'X-Accel-Buffering': 'no',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
             }
         )
+        return response
         
     except Exception as e:
         return jsonify({
@@ -175,12 +192,15 @@ def chat():
             "message": str(e)
         }), 500
 
-@app.route('/chat/history', methods=['GET'])
+@app.route('/chat/history', methods=['GET', 'OPTIONS'])
 def get_chat_history():
     """
     Get conversation history for a chat session
     GET /chat/history?chatId=abc-123
     """
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         chat_id = request.args.get('chatId')
         
@@ -196,12 +216,14 @@ def get_chat_history():
         
         session = chat_sessions[chat_id]
         
-        return jsonify({
+        response = jsonify({
             "chatId": chat_id,
             "model": session['model'],
             "messages": session['messages'],
             "message_count": len(session['messages'])
-        }), 200
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
         
     except Exception as e:
         return jsonify({
@@ -209,13 +231,16 @@ def get_chat_history():
             "message": str(e)
         }), 500
 
-@app.route('/chat/delete', methods=['DELETE'])
+@app.route('/chat/delete', methods=['DELETE', 'OPTIONS'])
 def delete_chat():
     """
     Delete a chat session
     DELETE /chat/delete
     Body: {"chatId": "abc-123"}
     """
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         data = request.get_json()
         
@@ -228,9 +253,11 @@ def delete_chat():
         
         if chat_id in chat_sessions:
             del chat_sessions[chat_id]
-            return jsonify({
+            response = jsonify({
                 "message": f"Chat session {chat_id} deleted successfully"
-            }), 200
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 200
         else:
             return jsonify({
                 "error": "Chat session not found"
@@ -242,12 +269,15 @@ def delete_chat():
             "message": str(e)
         }), 500
 
-@app.route('/models', methods=['GET'])
+@app.route('/models', methods=['GET', 'OPTIONS'])
 def list_models():
     """
     List available models
     GET /models
     """
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     models = [
         "gateway-gpt-5",
         "gateway-gpt-5-5",
@@ -258,24 +288,34 @@ def list_models():
         "gateway-mistral"
     ]
     
-    return jsonify({
+    response = jsonify({
         "models": models,
         "default": "gateway-gpt-5"
-    }), 200
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, 200
 
-@app.route('/health', methods=['GET'])
+@app.route('/health', methods=['GET', 'OPTIONS'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    response = jsonify({
         "status": "healthy",
         "active_sessions": len(chat_sessions),
         "timestamp": time.time()
-    }), 200
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, 200
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET', 'OPTIONS'])
 def home():
     """API information"""
-    return jsonify({
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    response = jsonify({
         "name": "AI Chat API",
         "version": "1.0.0",
         "endpoints": {
@@ -298,7 +338,18 @@ def home():
                 "body": {"chatId": "generated-id", "message": "Hello!"}
             }
         }
-    }), 200
+    })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response, 200
+
+# Handle preflight requests for all routes
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
