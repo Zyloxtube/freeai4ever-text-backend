@@ -18,7 +18,8 @@ CORS(app,
      origins='*', 
      methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
      allow_headers=['*'],
-     supports_credentials=True)
+     supports_credentials=True,
+     expose_headers=['*'])
 
 # Store chat sessions in memory (will reset on restart)
 chat_sessions = {}
@@ -26,13 +27,14 @@ chat_sessions = {}
 # Your API key
 API_KEY = "ua_j7N_FLn1MXA0WJF_4B8XVKSvs1geQfR0"
 
-# Add CORS headers to every response
+# Add CORS headers to every response - THIS IS CRITICAL
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
     response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Expose-Headers', 'Content-Type, Authorization')
     return response
 
 @app.route('/genchat', methods=['POST', 'OPTIONS'])
@@ -217,8 +219,9 @@ def chat():
                 'X-Accel-Buffering': 'no',
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-                'Access-Control-Allow-Credentials': 'true'
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+                'Access-Control-Allow-Credentials': 'true',
+                'Access-Control-Expose-Headers': 'Content-Type'
             }
         )
         return response
@@ -233,10 +236,7 @@ def chat():
 
 @app.route('/chat/history', methods=['GET', 'OPTIONS'])
 def get_chat_history():
-    """
-    Get conversation history for a chat session
-    GET /chat/history?chatId=abc-123
-    """
+    """Get conversation history for a chat session"""
     if request.method == 'OPTIONS':
         response = jsonify({})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -282,11 +282,7 @@ def get_chat_history():
 
 @app.route('/chat/delete', methods=['DELETE', 'OPTIONS'])
 def delete_chat():
-    """
-    Delete a chat session
-    DELETE /chat/delete
-    Body: {"chatId": "abc-123"}
-    """
+    """Delete a chat session"""
     if request.method == 'OPTIONS':
         response = jsonify({})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -330,10 +326,7 @@ def delete_chat():
 
 @app.route('/models', methods=['GET', 'OPTIONS'])
 def list_models():
-    """
-    List available models
-    GET /models
-    """
+    """List available models"""
     if request.method == 'OPTIONS':
         response = jsonify({})
         response.headers.add('Access-Control-Allow-Origin', '*')
