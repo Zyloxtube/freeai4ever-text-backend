@@ -1,5 +1,5 @@
 # ============================================================
-# COMPLETE API FOR RENDER.COM WITH CORS
+# COMPLETE API FOR RENDER.COM WITH PROPER CORS
 # File: main.py
 # ============================================================
 
@@ -13,14 +13,27 @@ import os
 
 app = Flask(__name__)
 
-# Enable CORS for all routes and all origins
-CORS(app, origins='*', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allow_headers=['*'])
+# Enable CORS for all routes with proper settings
+CORS(app, 
+     origins='*', 
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+     allow_headers=['*'],
+     supports_credentials=True)
 
 # Store chat sessions in memory (will reset on restart)
 chat_sessions = {}
 
 # Your API key
 API_KEY = "ua_j7N_FLn1MXA0WJF_4B8XVKSvs1geQfR0"
+
+# Add CORS headers to every response
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 @app.route('/genchat', methods=['POST', 'OPTIONS'])
 def generate_chat():
@@ -30,17 +43,23 @@ def generate_chat():
     Body: {"model": "gateway-gpt-5-5"}
     """
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
         
     try:
         data = request.get_json()
         
         # Check if model is provided
         if not data or 'model' not in data:
-            return jsonify({
+            response = jsonify({
                 "error": "Model is required",
                 "message": "Please provide 'model' in the request body"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         model = data['model']
         
@@ -63,10 +82,12 @@ def generate_chat():
         return response, 200
         
     except Exception as e:
-        return jsonify({
+        response = jsonify({
             "error": "Internal server error",
             "message": str(e)
-        }), 500
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
@@ -76,36 +97,48 @@ def chat():
     Body: {"chatId": "abc-123", "message": "Hello!"}
     """
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
         
     try:
         data = request.get_json()
         
         # Validate required fields
         if not data:
-            return jsonify({
+            response = jsonify({
                 "error": "Missing request body"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
             
         if 'chatId' not in data:
-            return jsonify({
+            response = jsonify({
                 "error": "chatId is required"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
             
         if 'message' not in data:
-            return jsonify({
+            response = jsonify({
                 "error": "message is required"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         chat_id = data['chatId']
         message = data['message']
         
         # Check if chat exists
         if chat_id not in chat_sessions:
-            return jsonify({
+            response = jsonify({
                 "error": "Chat session not found",
                 "message": f"Chat ID {chat_id} does not exist"
-            }), 404
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 404
         
         # Get the chat session
         session = chat_sessions[chat_id]
@@ -140,6 +173,9 @@ def chat():
                     stream=True,
                     timeout=60
                 )
+                
+                # Send CORS headers first
+                yield f"data: {json.dumps({'status': 'connected'})}\n\n"
                 
                 # Stream the response back to the client
                 for line in response.iter_lines():
@@ -181,16 +217,19 @@ def chat():
                 'X-Accel-Buffering': 'no',
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+                'Access-Control-Allow-Credentials': 'true'
             }
         )
         return response
         
     except Exception as e:
-        return jsonify({
+        response = jsonify({
             "error": "Internal server error",
             "message": str(e)
-        }), 500
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/chat/history', methods=['GET', 'OPTIONS'])
 def get_chat_history():
@@ -199,20 +238,28 @@ def get_chat_history():
     GET /chat/history?chatId=abc-123
     """
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
         
     try:
         chat_id = request.args.get('chatId')
         
         if not chat_id:
-            return jsonify({
+            response = jsonify({
                 "error": "chatId is required as query parameter"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         if chat_id not in chat_sessions:
-            return jsonify({
+            response = jsonify({
                 "error": "Chat session not found"
-            }), 404
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 404
         
         session = chat_sessions[chat_id]
         
@@ -226,10 +273,12 @@ def get_chat_history():
         return response, 200
         
     except Exception as e:
-        return jsonify({
+        response = jsonify({
             "error": "Internal server error",
             "message": str(e)
-        }), 500
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/chat/delete', methods=['DELETE', 'OPTIONS'])
 def delete_chat():
@@ -239,15 +288,21 @@ def delete_chat():
     Body: {"chatId": "abc-123"}
     """
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'DELETE, OPTIONS')
+        return response, 200
         
     try:
         data = request.get_json()
         
         if not data or 'chatId' not in data:
-            return jsonify({
+            response = jsonify({
                 "error": "chatId is required"
-            }), 400
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         chat_id = data['chatId']
         
@@ -259,15 +314,19 @@ def delete_chat():
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 200
         else:
-            return jsonify({
+            response = jsonify({
                 "error": "Chat session not found"
-            }), 404
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 404
             
     except Exception as e:
-        return jsonify({
+        response = jsonify({
             "error": "Internal server error",
             "message": str(e)
-        }), 500
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @app.route('/models', methods=['GET', 'OPTIONS'])
 def list_models():
@@ -276,7 +335,11 @@ def list_models():
     GET /models
     """
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
         
     models = [
         "gateway-gpt-5",
@@ -299,7 +362,11 @@ def list_models():
 def health_check():
     """Health check endpoint"""
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
         
     response = jsonify({
         "status": "healthy",
@@ -313,7 +380,11 @@ def health_check():
 def home():
     """API information"""
     if request.method == 'OPTIONS':
-        return '', 200
+        response = jsonify({})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
         
     response = jsonify({
         "name": "AI Chat API",
@@ -341,14 +412,6 @@ def home():
     })
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response, 200
-
-# Handle preflight requests for all routes
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
